@@ -1,0 +1,194 @@
+
+# To support both python2 and python 3
+from __future__ import division, print_function, unicode_literals
+
+# Common imports
+import numpy as np
+import os
+import ARIApySpark
+import datetime
+import matplotlib
+import pandas as pd
+import tensorflow as tf
+import hyperengine as hype
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler as mms
+#from sklearn.preprocessing import PolynomialFeatures      # polynomial linear regression
+
+# to make this file output stable across run
+np.random.seed(42)
+
+######################################### FIGURE SAVE SETTING (below) #########################################
+# To plot pretty figures
+import matplotlib.pyplot as plt
+plt.rcParams['axes.labelsize'] = 14
+plt.rcParams['xtick.labelsize'] = 12
+plt.rcParams['ytick.labelsize'] = 12
+
+# Where to save the figures
+PROJECT_ROOT_DIR = "/home/hadoop/PycharmProjects/test/"
+CTGR_ID = "test_image"
+IMAGES_PATH = os.path.join(PROJECT_ROOT_DIR, "images", CTGR_ID)
+
+def save_fig(fig_id, tight_layout=True, fig_extension="png", resolution=300):
+    path = os.path.join(IMAGES_PATH, fig_id + "." + fig_extension)
+    print("Saving figure", fig_id)
+    if tight_layout:
+        plt.tight_layout()
+    if not os.path.isdir(IMAGES_PATH):
+        os.makedirs(IMAGES_PATH)
+    plt.savefig(path, format=fig_extension, dpi=resolution)
+
+
+######################################### SERVING DATA ########################################################
+
+# ARIApySpark.ARIApyspark object Declare - Spark appName = 'test'
+loaddate = ARIApySpark.ARIApyspark('test')   ## pyspark
+
+# load .txt file(format = csv) on local environment  (not Hadoop Filesystem)
+loaddate.initLocalData("/home/hadoop/filesystem/vpndata/mldata/", '20171201','20171201')
+allData = loaddate.selectData("*")
+
+
+######################################### PREPROCESSING DATA ##################################################
+
+###### Transform Data - Pivoting Data ######
+allData = allData.groupBy("YEAR","MONTH","DAY","HOUR","MINUTE").pivot("TAG_ID").sum("VALUE").sort("YEAR","MONTH","DAY","HOUR","MINUTE").toPandas().dropna(axis=0)
+
+###### Transform Data - Combine or Concatenate Data ######
+# Variable Declare - Columns for Handling
+datecols = ["YEAR","MONTH","DAY","HOUR","MINUTE"]
+
+# Date Concatenation (YEAR+ MONTH + DAY + HOUR + MINUTE) -ex: 2018 1 5 2 5 ==> 201801050205
+for i in datecols:
+    allData[i] = allData[i].apply('{:0>2}'.format)
+allData['DATE'] = allData[["YEAR","MONTH","DAY","HOUR","MINUTE"]].apply(lambda x : '{}{}{}{}{}'.format(x[0],x[1],x[2],x[3],x[4]), axis=1)
+
+###### Transform Data - Removing Useless Data
+# Useless Columns Removing
+for i in datecols:
+    del allData[i]
+
+###### Transform Data - Column Sequence Arrange
+# Column Sequence Management
+cols = allData.columns.tolist()
+cols_all = cols[-1:]+cols[:-1]
+allData = allData[cols_all]
+print(allData.columns)
+###### Transform Data - Customizing based on Data Property - !!!!! update needed (number of inverter or plant id etc. will be automatically detected)
+# Separate Data based on No. of Inverter
+inv01_Data = allData.iloc[:,[2,4,9,10,11,3]].copy()
+inv02_Data = allData.iloc[:,[6,8,9,10,11,7]].copy()
+
+##### Transform Data - Transform Type of Data for using analysis libraries - !!!!! update needed (for loop type)
+# np_inv_Raw_Data = allData.values              # Whole Raw Data - ndarray
+# m, n = np_inv_Raw_Data.shape
+# print("inv_Raw_Data - row: ",m," col: ",n)
+#print(np_inv_Raw_Data.columns)
+
+np_inv01_Raw_Data = inv01_Data.values         # inv01 Raw Data - ndarray
+np_inv02_Raw_Data = inv02_Data.values         # inv02 Raw Data - ndarray
+np_inv01_Data = np_inv01_Raw_Data.copy()
+np_inv02_Data = np_inv02_Raw_Data.copy()
+m, n = np_inv01_Data.shape
+print("inv_Data - row: ",m," col: ",n)
+
+
+# if DC_I = 0 : DC_V = 0 ------- !!!!! have to upgrade code for flexible module
+for i in range(0, m):
+    if np_inv01_Data[i,0] <= 0:
+        np_inv01_Data[i,1] = 0
+    if np_inv02_Data[i,0] <= 0:
+        np_inv02_Data[i,1] = 0
+
+
+
+# split train / test dataset
+inv01_train_set, inv01_test_set = train_test_split(np_inv01_Data, test_size=0.2, random_state=42)
+inv02_train_set, inv02_test_set = train_test_split(np_inv02_Data, test_size=0.2, random_state=42)
+
+# separate label data from raw data
+inv01_train_y = inv01_train_set[:,-1].reshape((-1,1))
+inv01_test_y = inv01_test_set[:,-1].reshape((-1,1))
+inv01_train_y_acc = inv01_train_y.copy()
+inv02_train_y = inv02_train_set[:,-1].reshape((-1,1))
+inv02_test_y = inv02_test_set[:,-1].reshape((-1,1))
+inv02_train_y_acc = inv02_train_y.copy()
+
+##### Feature Scaling
+#poly_data = PolynomialFeatures(degree=4) # 4th            # polynomial linear regression
+scaler_train_X1 = mms().fit(inv01_train_set[:,:-1])
+scaler_train_Y1 = mms().fit(inv01_train_y)
+inv01_train_y1 = scaler_train_Y1.transform(inv01_train_y)
+inv01_train_X1 = scaler_train_X1.transform(inv01_train_set[:,:-1])
+#inv01_train_X = poly_data.fit_transform(inv01_train_X)    # polynomial linear regression
+
+scaler_test_X1 = mms().fit(inv01_test_set[:,:-1])
+scaler_test_Y1 = mms().fit(inv01_test_y)
+inv01_test_y1 = scaler_test_Y1.transform(inv01_test_y)
+inv01_test_X1 = scaler_test_X1.transform(inv01_test_set[:,:-1])
+#inv01_test_X = poly_data.fit_transform(inv01_test_X)      # polynomial linear regression
+
+#poly_data = PolynomialFeatures(degree=4) # 4th            # polynomial linear regression
+scaler_train_X2 = mms().fit(inv02_train_set[:,:-1])
+scaler_train_Y2 = mms().fit(inv02_train_y)
+inv02_train_y2 = scaler_train_Y2.transform(inv02_train_y)
+inv02_train_X2 = scaler_train_X2.transform(inv02_train_set[:,:-1])
+#inv01_train_X = poly_data.fit_transform(inv01_train_X)    # polynomial linear regression
+
+scaler_test_X2 = mms().fit(inv02_test_set[:,:-1])
+scaler_test_Y2 = mms().fit(inv02_test_y)
+inv02_test_y2 = scaler_test_Y2.transform(inv02_test_y)
+inv02_test_X2 = scaler_test_X2.transform(inv02_test_set[:,:-1])
+#inv01_test_X = poly_data.fit_transform(inv01_test_X)      # polynomial linear regression
+
+
+print("inv01_train_X.shape: ", inv01_train_X1.shape)
+print("inv01_train_y.shape: ", inv01_train_y1.shape)
+print("inv01_train_y: ", inv01_train_y1)
+
+m1, n1 = inv01_train_X1.shape
+print("m1: ",m1," n1: ",n1)
+
+X = tf.placeholder(tf.float32, shape=(None, n1), name="X")
+y = tf.placeholder(tf.float32, shape=(None, 1), name="y")
+w = tf.Variable(tf.random_uniform([n1, 1], -1.0, 1.0), name="weight")
+b = tf.Variable(tf.random_normal([1]), name='bias')
+
+##### hyperparameter #####
+batch_size = 100
+n_batches = int(np.ceil(m1 / batch_size))
+learning_rate = 1e-3
+n_epochs = 5000
+
+
+hypothesis = tf.matmul(X, w, name="hypothesis") + b
+cost = tf.reduce_mean(tf.square(hypothesis-y))
+optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
+# Correct Prediction Test model
+prediction = tf.arg_max(hypothesis,1)
+is_correct = tf.equal(prediction, tf.arg_max(y,1))
+accuracy = tf.reduce_mean(tf.cast(is_correct, tf.float32))
+
+# Model Saver
+saver = tf.train.Saver()
+
+nowDate = datetime.datetime.now().strftime('%Y%m%d_')
+
+
+# Execution
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    for epoch in range(n_epochs):
+        cost_val, hy_val, _ = sess.run([cost, hypothesis, optimizer], feed_dict={X: inv01_train_X1, y: inv01_train_y})
+        if epoch & 100 == 0:
+           print(epoch, "cost: ", cost_val, "\nhypothesis:\n", scaler_train_Y1.inverse_transform(hy_val), "\nreal_y:\n", inv01_train_set[:,-1:].reshape((-1,1)))
+    #print("Accuracy:", sess.run(tf.reduce_mean(tf.cast(tf.equal(scaler_train_Y.inverse_transform(hy_val).reshape((-1,1)),tf.arg_max(inv01_train_y_acc,1)))))
+
+    save_path = saver.save(sess, os.path.join(PROJECT_ROOT_DIR+nowDate+"final_model.ckpt"))
+
+    #predict
+    print("Prediction:", sess.run(prediction, feed_dict={X: inv01_test_X1}))
+    # Calculate the accuracy
+    print("Accuracy:", sess.run(accuracy, feed_dict={X: inv01_test_X1, y: inv01_test_y}))
