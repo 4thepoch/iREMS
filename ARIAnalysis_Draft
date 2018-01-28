@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+# -*- coding: utf-9 -*-
+
+# Support both python2 and python3
+from __future__ import division, print_function, Unicode_literals
+
+# Common Import
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler as mms # 차후 Scaler 선택가능하도록 확장 필요
+# from sklearn.preprocessing import PolynomialFeatures # 차후 다항선형회귀분석 기법 선택 시 import 필요
+import os
+import pandas as pd
+import ARIApySpark
+import datetime
+import tensorflow as tf
+import hyperengine as hype
+
+class ARIAnalysis
+	# ARIAnalysis 클래스 초기화
+	def __init__(self, pyspark = None, .... )
+		# SparkContext reusing (default =>> for local test )
+		if(pyspark is None):
+			self.pyspark = ARIApySpark.ARIApyspark('admin_test')
+		else:
+			self.pyspark = pyspark
+	def loadModel()
+		tf.train.Saver.restore()
+	def loadData()
+	def preProcData()
+    def train()
+	def feautreImportance()
+	def saveModel()
+	def pred()
+	def dbInsert()
+
+
+
+
+import ARIAnalysis
+
+obj = ARIAnalysis.ARIAanalysis()
+obj.()
+	
+	
+	
+	
+
+	
+		jobType == "TRAIN":
+			if(tTerm is None):
+				nowDate = datetiem.datetime.now().strftime('%Y%m%d')
+				self.tTerm = [nowDate, nowDate]
+			else:
