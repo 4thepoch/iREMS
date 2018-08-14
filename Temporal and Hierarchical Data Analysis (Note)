@@ -1,0 +1,196 @@
+Summary Note (Coursera - Temporal and Hierarchical Data Analysis) for myself
+
+Temporal Data
+	* 2D XY Time Series data는 Cyclical Pattern을 찾기 어렵다
+
+이런 경우, spiral graph를 활용하여 패턴 인식Spiral Graph의 주요 산식- Archimedian Spiral  r = a + b * theta- Logarithmic Spiral  r = a*exp(b*theta)  theta = (1/b) * ln(r/a)
+	* Spiral Graph is method to encode data over time.
+	* Trend Analysis > Seasonality and Forecasting
+	* Control Chart Analysis
+
+		* Objective: Detect Patterns and Anomalies in big data
+		* Exploring patterns and anomalies in time series data is a Control Chart.
+		* In temporal data, We can find patterns through contol chart.
+		* Mean and Standard deviation from all data
+		* Upper Control Limit (mu + k*sigma) / Center Line (mu) / Lower Control Limit (mu - k*sigma)
+		* Moving Average Chart >> monitors the process location over time (detect small shifts in the process mean, control limits are deriven from average range on Range Chart)
+		* Range Chart >> monitors the process variation over time, should be reviewed before Moving Average Chart
+
+			* exmaple
+
+				* << Standard Moving Average >>
+				* Daily Closing Prices: 11, 12, 13, 14, 15, 16, 17
+				* First day of 5-day SMA: (11+12+13+14+15)/5 = 13
+				* Second day of 5-day SMA: (12+13+14+15+16)/5 = 14
+				* Third day of 5-day SMA: (13+14+15+16+17)/5 = 15
+				* 
+				* << Exponentially Weighted Moving Average >>
+				* if SMA = 10 period sum / 10,
+				* Muliplier: (2 / (Time periods+1)) = (2 / (10+1)) = 0.1818 (18.18%)
+				* EMA: {Close - EMA(previous day)} x multiplier + EMA (precious day)
+
+
+	* SMA with longer window is good for tracking slow moving historical trends and changes
+	* EMA can capture quick upticks in thoses things
+	* Shorter Moving (nimble and quick to change)
+	* Longer lag (Longer the moving average, more the lag)
+	* Longer Moving (Longer moving slow to change)
+
+Time Series
+	* With Time Series Data, We can compare pattern among the different Time Series Data
+	* With Time Series Data, We can forecast future Data
+	* With Time Series Data, We can find motif(Repeating Pattern)
+	* With Time Series Data, We can classify Time Series Data      (Because time series usually Bayesian is used to record real-world events)
+
+
+	* Time Series Models (High-level Properties of Time Series : type of time series)
+	* >> Stationary Series
+	* >>> Statistical properties, such as mean and variance, are constant over time
+	* >> Non-Stationary Series
+	* >>> Statistical properties change over time
+	* >>>> 1. Cyclic (periodic behavior)
+	* >>>> 2. Cyclic with trend
+
+          
+	* >>>> 3. Cyclic with constant variance
+	* >>>> 4. Cyclic with time-dependent variance
+
+          
+	* >>>> 5. Cyclic with constant speed
+	* >>>> 6. Cyclic with time-dependent speed
+
+           
+	* !! Why important?
+
+		* most statistical forecasing methods assume that the series can be rendered(approximately) stationary through mathematical transformation.
+
+
+	* << Time Series Modeling >>     Models of Time Series
+
+
+	* Random Time 
+	* Autoregressive Time
+	* Moving Average
+	* ARMA
+	* Differencing
+	* ARIMA
+
+
+	* Random Time Series Model
+
+		* Current observations only reflect current(random) error:
+
+			* Xt = Et (Et ~ N(0, sigma^2) -> Generally use Gaussian. Zero mean with some variance   <----- Et is Error at that time t (or External Effect at that time t)
+		* Intuitively, the "random error" represents a stochastic process that does not depend on the past (e.g. an external input to the system)
+		* Generally, like as the case that Stock market easily depend on past values many real-world phenomena are not Random Time Series Model.. (But, I think the case of Nature Environment like weather data sometimes regard as random time series model..  for example, When we construct constraint system, the weather trend is random time series models)
+	* Autoregressive Time Series Model
+
+		* AR(1): the current observation depends only the previous time instance and the current error
+
+			* Xt = alpha*Xt-1 + Et + lambda
+		* AR(2): the currnet observation depends only the previous 2 time instances and the current error
+
+			* Xt = alpha1 * Xt-1 + alpha2 * Xt-2 + Et + lambda
+		* AR(n): the current observation depends only the prevoius n times instances and the current error
+
+			* Xt = SIGMA(i from 1 to n) [alphi * Xt-i] + Et + lambda
+	* Moving Average Time Series Model
+
+		* MA(1): the current observation depends only to the error in the previous time instance and the current error
+
+			* Xt = beta * Et-1 + Et + lambda
+		* MA(2): the current observation depends only to the error in the previous 2 time instances and the current error
+
+			* Xt = beta1 * Et-1 + beta2 * Et-2 + Et + lambda
+	* ARMA Model
+
+		* AR + MA (a,m):
+		* AR(a): The model has a auto-regressive terms
+		* MA(m): The model has m moving-average terms
+
+			* Xt = (alpha1 * Xt-1 + .. + alphaa * Xt-a) + (beta1 * Et-1 + .. + beta * Et-m) + Et + lambda
+			* >>> We usually don't use large a and m!! because large a and m make model too difficult to discover accurately
+		* Shortcoming of ARMA models:
+
+			* These models can't models where the current value is determined by taking into account the speed of change or degree of acceleration observed in the past
+			* The time is constant or assume that the speed of the events are constant
+			* don't take account speed of change or the degree of acceleration of the time series
+
+
+	* Models with Differencing
+
+		* "differencing" enables models to also consider speed of change and degree of acceleration in determining the current value:
+
+			* Order-1 differencing:
+
+				* Xt(1) = Xt - Xt-1 (speed of change)
+			* Order-2 differencing:
+
+				* Xt(2) = Xt(1) - Xt-1(1) (degree of acceleration)
+			* ...
+			* Order-d differencing:
+
+				* Xt(d) = Xt(d-1)-Xt-1(d-1)
+	* ARIMA(a, d, m)
+
+		* AR(a): The model has a auto-regressive terms
+		* MA(m): The model has m moving-average terms
+		* Intergrated with order-d differencing
+
+			* Xt = (alpha1 * Xt-1 + .. + alphaa * Xt-a) + (beta1 * Et-1 + .. + beta * Et-m) + Et + lambda + (theta1 * Xt-1(d) + ... + thetam * Xt-m(d)
+
+[[[ ARIMA just takes care about immediate past values and errors!! So, It is hard to recognize cyclic pattern by using ARIMA ]]]
+	* << Time Series Seasonal Differencing >> 
+	* Models with Seasonal Differencing
+	* Seasonal "differencing" enables models to also consider speed of changes of values across a gap (or a lag):
+
+		* lag "s' seasonal differencing
+		* St(s) = Xt - Xt-s
+		* We can convert Non-stationary Time Series to stationary Time Series when original time series have cyclic property.
+
+    
+	* Seosonal ARIMA models also incorporate seasonal terms
+
+		* additive seasonal models
+
+			* Xt = ARIMA(a,d,m) + SEASONALs(A,D,M)A = # seasonal autoregressive tems, D = # seasonal differences, M = # seasonal moving average terms
+		* Multiplicative seasonal models
+
+			* Xt = ARIMA(a,d,m) X SEASONALs(A,D,M)A = # seasonal autoregressive tems, D = # seasonal differences, M = # seasonal moving average terms
+
+SO~~ What we want to do is Time Series Data Discovery! >> closed-form formula.Model Discovery(Box-Jenkins Procedure)
+	* Model based Time Series Analysis
+
+		* Find the parameters of the model
+
+			* Model fitting   ( Degree of fit and Complexity Trade off Relationship )
+
+				* ther model should be as simple as possible (contain as few terms as possible)
+				* the fit to historic data should be as good as possible
+	* Box-Jenkins procedure
+
+		* Differencing (for obtain as possible as stationary time series data)
+
+			* Remove any seasonal patteerns and deterministic trends that may hide valuable information and patterns through differencing (for obtain stationary time series form)
+			* When the mean trend is stochastic, differencing the series may yield a stationary stochastic process and, thus, may help convert a non-stationary series to a stationary one
+		* Plot Analysis
+
+			* Autocorrelation Function(ACF) helps observe linear relationships between lagged values of a time series
+
+                                                                                                                
+	* Partial Autocorrelation Function(PACF) adjusts for the presence of intermediate values
+
+                                                    
+	* Key Properties of ACF and PACF
+	* For trend series autocorrelation function (ACF) slowly decays.
+
+      
+	* Upper Right Graph's X-Axis is lag and Y-Axis is Autocorrelation Value
+
+
+	* For an autoregressive, AR(a), series, the partial autocorrelation function (PACF) gives 0 at lag >= a+1
+
+      
+	* 
+
+
