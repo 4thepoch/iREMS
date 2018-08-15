@@ -22,7 +22,9 @@ def dtw(ts1=[],ts2=[],plot=False,test=False):
     :type test: logical - True if this is a test
     """
     if test:
+        # ts1 이란 첫번째 시계열 데이터를 의미
         ts1 = np.cos(2*np.pi*(3*np.arange(1,1001,dtype=float)/1000)**2)
+        # ts1 이란 두번째 시계열 데이터를 의미
         ts2 = np.cos(2*np.pi*9*np.arange(1,400,dtype=float)/400)
         
     if plot:
@@ -30,8 +32,8 @@ def dtw(ts1=[],ts2=[],plot=False,test=False):
         plt.plot(ts2)
         plt.show()        
 
-    m = len(ts1)
-    n = len(ts2)
+    m = len(ts1) # iREMS의 경우, window size는 10분으로 고정 (Separately) window는 서로 겹치지 않도록 한다.
+    n = len(ts2) # iREMS의 경우, window size는 10분으로 고정 (Separately) window는 서로 겹치지 않도록 한다.
     DTW = np.zeros((n,m),dtype=float)
 
  #   for i in range(1,n):
