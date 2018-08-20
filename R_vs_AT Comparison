@@ -1,0 +1,33 @@
+##############################################
+################# 데이터 준비  ###############
+
+# SR1 DATA LOAD 
+df = pd.read_csv('../data/0816_alldata.csv', header='infer')
+
+#print(df.iloc[0])  #2018-01-03 ~ 2018-08-16
+df = df[['IPA_SOL005_SEN01_ATEMP','IPA_SOL005_SEN02_SR1','YEAR','MONTH','DAY','HOUR','MINUTE']]
+
+df = df.reset_index()
+
+print(len(df))
+print(df)
+
+
+
+
+np_w_r = df[['IPA_SOL005_SEN02_SR1']].values
+for i in range(len(np_w_r)):
+    np_w_r[i]=np_w_r[i]/50
+print(np_w_r)
+print(np_w_r.shape)
+np_w_at = df[['IPA_SOL005_SEN01_ATEMP']].values
+print(np_w_at)
+print(np_w_at.shape)
+
+plt.rcParams["figure.figsize"] = (20,4)
+plt.plot(np_w_r, 'r', label='Radiation')
+plt.plot(np_w_at, 'b', label='AT')
+plt.legend(loc='center left')
+plt.title("Radiation vs. Ambient Temperature")
+plt.show()
+    
