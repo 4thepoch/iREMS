@@ -1,0 +1,159 @@
+%matplotlib inline
+# 사용할 패키지 불러오기
+import keras
+from keras.models import Sequential
+from keras.layers import Dense, LSTM, Dropout
+from keras.utils  import np_utils
+from keras.models import load_model
+from keras.optimizers import Adam
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+
+from datetime import date
+import math
+
+def getSunFactor(year, month, day, hour, minute, lat):
+    # local time
+    loc_time = (hour * 60 + minute) / 60
+    
+    d0 = date(year, 1, 1)
+    d1 = date(year, month, day)
+    # 연일수
+    dday = (d1 - d0).days +1
+    
+    # 적위
+    dec = (-23.44 * math.cos(math.radians(360/365*(dday + 10))))
+    
+    # 균시차
+    gsc = (0.17 * math.sin( (729/373) * (dday-80)) - 0.129 * math.sin( (360/365) * (dday - 8) )) * 60
+    
+    # 진태양시
+    gst = loc_time + ( 4 * (126.6214545 - 135) + gsc ) / 60
+    
+    # 시간각
+    ta = (gst - 12) * 15
+    
+    # 태양고도
+    sg = math.degrees( math.asin(  math.sin(math.radians(dec)) 
+                                 * math.sin(math.radians(lat)) 
+                                 + math.cos(math.radians(dec)) 
+                                 * math.cos(math.radians(lat)) 
+                                 * math.cos(math.radians(ta))))
+    
+    # 태양 - 지구 간 거리
+    dist = 1 + 0.033 * math.cos(2 * math.pi * dday / 365)
+    
+    #print("로컬타임 : {} , 위도 : {} , 연일수 : {} ".format(loc_time, lat, dday))
+    #print("적위 : {} , 균시차 : {}, 진태양시 : {}, 시간각 : {}, 태양고도 : {} ".format(dec, gsc, gst, ta, sg))
+    
+    return sg, dist
+    
+##############################################
+################# 데이터 준비  ###############
+
+# SR1 DATA LOAD 
+df = pd.read_csv('../Hyunjun/ICN_R_2010_2018_good_weather.csv', header='infer')
+
+print(df.iloc[0])
+print(len(df))
+
+np_dataset = df.values
+
+
+#  년 월  일 시간
+#2010 01 01 00
+
+sun_factor_list = []
+LAT = 37.465523
+
+for i in range(0, len(np_dataset)):
+    datetime = str(int(np_dataset[i][0]))
+    _year   = int(datetime[0:4])
+    _month  = int(datetime[4:6])
+    _day    = int(datetime[6:8])
+    _hour   = int(datetime[8:10])
+    _minute = 0
+    
+    sg, dist = getSunFactor(_year, _month, _day, _hour, _minute, LAT)
+    sun_factor_list.append([sg, dist])
+    
+    if(i % 100 == 0):
+        print("{} / {} ".format(i, len(np_dataset)))
+
+print(np_dataset)
+
+# 데이터 전처리 #
+
+# x list -> numpy -> reshape
+# dataset -> y_np 추출
+x_np_set = np.asarray(sun_factor_list)
+x_np_set = x_np_set.reshape(-1, 2)
+y_np_set = np_dataset[:,[1]]
+
+print(x_np_set.shape)
+print(y_np_set.shape)
+
+# make Scaler
+x_scaler = MinMaxScaler(feature_range=(0 ,1))
+y_scaler = MinMaxScaler(feature_range=(0 ,1))
+
+# Using Scaler
+x_set = x_scaler.fit_transform(x_np_set)
+y_set = y_scaler.fit_transform(y_np_set)
+
+# make train, valid index
+train_idx = int(len(y_set) * 0.8)
+val_idx   = train_idx + int(len(y_set) * 0.1)
+
+# split dataset
+train_x = x_set[:train_idx]
+train_y = y_set[:train_idx]
+
+val_x = x_set[train_idx:val_idx]
+val_y = y_set[train_idx:val_idx]
+
+test_x = x_set[val_idx:]
+test_y = y_set[val_idx:]
+
+
+
+model = Sequential()
+model.add(Dense(264, input_dim=2, activation='relu'))
+model.add(Dense(128, activation='relu'))
+model.add(Dense(64,  activation='relu'))
+model.add(Dense(1))
+
+model.compile(optimizer='adam', loss='mse')
+
+'''
+model = Sequential()
+model.add(Dense(50, input_shape=(train_x.shape[1],), activation='relu', kernel_initializer='lecun_uniform'))
+model.add(Dense(50, input_shape=(train_x.shape[1],), activation='relu'))
+model.add(Dense(1))
+model.compile(optimizer=Adam(lr=0.001), loss='mean_squared_error')
+'''
+hist = model.fit(train_x, train_y, batch_size=30, epochs=100, validation_data=(val_x, val_y))
+
+# model.save('./SUNFACTOR_PREDICT_R_GOOD_WEATHER_V2_NOKI')
+
+y_test_result  = y_scaler.inverse_transform(test_y)
+y_predict = model.predict(x=test_x)
+y_predict_result = y_scaler.inverse_transform(y_predict)
+
+plt.rcParams["figure.figsize"] = (20,4)
+plt.plot(y_predict_result, 'r', label='predict')
+plt.plot(y_test_result, 'b', label='real')
+plt.legend(loc='center left')
+plt.show()
+    
+for i in range(0, int(len(y_predict_result)/ 24) ):
+    _prev = i * 24
+    _next = (i + 1) *24
+    plt.rcParams["figure.figsize"] = (20,4)
+    plt.plot(y_predict_result[_prev:_next], 'r', label='predict')
+    plt.plot(y_test_result[_prev:_next], 'b', label='real')
+    plt.legend(loc='center left')
+    plt.show()
