@@ -1,0 +1,117 @@
+##############################################
+################# 데이터 준비  ###############
+
+# SR1 DATA LOAD 
+df = pd.read_csv('./170328_180821_REC.csv', header='infer')
+
+#print(df.iloc[0])  #2018-01-03 ~ 2018-08-16
+train_df = df[['total_trade_rec','avg_price_train','total_trade_q','start_price','end_price','std_price','max_price','min_price']]
+#train_df = df[['total_trade_rec','avg_price_train','total_trade_q','end_price','std_price','max_price','min_price']]
+label_df = df[['avg_price_label']]
+
+
+np_train = train_df.values
+np_label = label_df.values
+print("Train shape : {}".format(np_train.shape))
+print(np_train)
+print("Label shape : {}".format(np_label.shape))
+print(np_label)
+
+# 데이터 전처리 #
+
+# x list -> numpy -> reshape
+# dataset -> y_np 추출
+x_np_set = np.asarray(np_train)
+#x_np_set = x_np_set.reshape(-1, 8)
+y_np_set = np_label.reshape(-1,1)
+
+print(x_np_set.shape)
+print(y_np_set.shape)
+
+# make Scaler
+x_scaler = MinMaxScaler(feature_range=(0 ,1))
+y_scaler = MinMaxScaler(feature_range=(0 ,1))
+
+# Using Scaler
+x_set = x_scaler.fit_transform(x_np_set)
+y_set = y_scaler.fit_transform(y_np_set)
+
+# make train, valid index
+train_idx = int(len(y_set) * 0.8)
+val_idx   = train_idx + int(len(y_set) * 0.1)
+
+# split dataset
+train_x = x_set[:train_idx]
+train_y = y_set[:train_idx]
+
+val_x = x_set[train_idx:val_idx]
+val_y = y_set[train_idx:val_idx]
+
+test_x = x_set[val_idx:]
+test_y = y_set[val_idx:]
+
+print(x_np_set.shape[1])
+
+
+model = Sequential()
+model.add(Dense(264, input_dim=x_np_set.shape[1], activation='relu'))
+model.add(Dense(128, activation='relu'))
+model.add(Dense(64,  activation='relu'))
+model.add(Dense(1))
+
+model.compile(optimizer='adam', loss='mse')
+
+'''
+model = Sequential()
+model.add(Dense(50, input_shape=(train_x.shape[1],), activation='relu', kernel_initializer='lecun_uniform'))
+model.add(Dense(50, input_shape=(train_x.shape[1],), activation='relu'))
+model.add(Dense(1))
+model.compile(optimizer=Adam(lr=0.001), loss='mean_squared_error')
+'''
+hist = model.fit(train_x, train_y, batch_size=10, epochs=30, validation_data=(val_x, val_y))
+
+plt.plot(hist.history['loss'])
+plt.plot(hist.history['val_loss'])
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train'], loc='upper left')
+plt.show()
+
+model.save('REC_NEXT_AVG_PRICE_PREDICTION_v2_No_Start_Price.h3')
+
+y_test_result  = y_scaler.inverse_transform(test_y)
+y_predict = model.predict(x=test_x)
+y_predict_result = y_scaler.inverse_transform(y_predict)
+
+plt.rcParams["figure.figsize"] = (20,4)
+plt.plot(y_predict_result, 'b', label='predict')
+plt.plot(y_test_result, 'r', label='real')
+plt.legend(loc='center left')
+plt.show()
+
+
+err_val = np.abs(y_predict_result-y_test_result)
+err_per = (np.abs(y_predict_result-y_test_result)/y_test_result)*100 
+
+plt.rcParams["figure.figsize"] = (20,4)
+plt.plot(err_val, 'b', label='err_value')
+plt.legend(loc='center left')
+plt.show()
+
+plt.rcParams["figure.figsize"] = (20,4)
+plt.plot(err_per, 'b', label='err_percentage')
+plt.legend(loc='center left')
+plt.show()
+
+print(err_val)
+print(err_per)
+
+print("avg.err_val: {}".format(np.average(err_val)))
+print("max.err_val: {}".format(np.max(err_val)))
+print("min.err_val: {}".format(np.min(err_val)))
+print("std.err_val: {}".format(np.std(err_val)))
+
+print("avg.err_per: {}".format(np.average(err_per)))
+print("max.err_per: {}".format(np.max(err_per)))
+print("min.err_per: {}".format(np.min(err_per)))
+print("std.err_per: {}".format(np.std(err_per)))
