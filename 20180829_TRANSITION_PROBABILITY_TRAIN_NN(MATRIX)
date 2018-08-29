@@ -1,0 +1,127 @@
+import keras
+from keras.models import Sequential
+from keras.layers import Dense, LSTM, Dropout
+from keras.utils  import np_utils
+from keras.models import load_model
+from keras.optimizers import Adam
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+
+from datetime import date
+import math
+
+##############################################
+################# 데이터 준비  ###############
+
+# DATA LOAD 
+df = pd.read_csv('../Hyunjun/MATRIX_TRAIN_LABEL_SUBT.csv', header='infer')
+
+#print(df.iloc[0])  #2018-01-03 ~ 
+df = df[['SAA','DIST','TIME','R','MT','LABEL']]
+
+df = df.reset_index()
+print(df.shape)
+print(df[['index']])
+
+np_trainset = df[['SAA','DIST','TIME','R','MT']].values
+np_labelset = df[['LABEL']].values
+print(np_trainset)
+print(np_labelset)
+
+# 데이터 전처리 #
+
+# x list -> numpy -> reshape
+# dataset -> y_np 추출
+
+x_np_set = np_trainset[:]
+y_np_set = np_labelset[:]
+
+# 데이터셋 전처리 : one-hot 인코딩
+y_np_set = np_utils.to_categorical(y_np_set, num_classes=81) # 81 states
+
+
+print(x_np_set.shape)
+print(y_np_set.shape)
+
+# make Scaler
+x_scaler = MinMaxScaler(feature_range=(0 ,1))
+y_scaler = MinMaxScaler(feature_range=(0 ,1))
+
+# Using Scaler
+x_set = x_scaler.fit_transform(x_np_set)
+y_set = y_scaler.fit_transform(y_np_set)
+
+# make train, valid index
+train_idx = int(len(y_set) * 0.8)
+val_idx   = train_idx + int(len(y_set) * 0.1)
+
+# split dataset
+train_x = x_set[:train_idx]
+train_y = y_set[:train_idx]
+
+val_x = x_set[train_idx:val_idx]
+val_y = y_set[train_idx:val_idx]
+
+test_x = x_set[val_idx:]
+test_y = y_set[val_idx:]
+
+
+##############################################################################
+########### Neural Network Algorithm for Multi-class Classification ##########
+
+model = Sequential()
+model.add(Dense(350, input_dim=5, activation='relu'))
+model.add(Dense(250, activation='relu'))
+model.add(Dense(125, activation='relu'))
+model.add(Dense(81,  activation='softmax'))
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+hist = model.fit(train_x, train_y, batch_size=800, epochs=300, validation_data=(val_x, val_y))
+
+##############################################################################
+################################## Save Model ################################
+
+model.save('./NEXT_STATE_PREDICTION_Ver_0.4')
+
+##############################################################################
+################################## Prediction ################################
+
+y_test_result  = y_scaler.inverse_transform(test_y)
+y_predict = model.predict(x=test_x)
+y_predict_result = y_scaler.inverse_transform(y_predict)
+
+##############################################################################
+################################## Comparison ################################
+
+yp_rows = y_predict_result.shape[0]
+yt_rows = y_test_result.shape[0]
+
+y_pred = np.zeros([yp_rows,1])
+y_test = np.zeros([yt_rows,1])
+for i in range(y_predict_result.shape[0]):
+    tmp1 = np.max(y_predict_result[i,:])
+    for j in range(y_predict_result.shape[1]):
+        if(tmp1==y_predict_result[i,j]):
+            y_pred[i]=j
+for i in range(y_test_result.shape[0]):
+    tmp1 = np.max(y_test_result[i,:])
+    for j in range(y_test_result.shape[1]):
+        if(tmp1==y_test_result[i,j]):
+            y_test[i]=j
+
+comp = np.c_[y_pred, y_test]
+acc = np.zeros([comp.shape[0],1])
+for i in range(len(comp)):
+    if comp[i,0]==comp[i,1]:
+        acc[i]=1
+        
+## accuracy ##
+print((np.sum(acc)/len(acc))*100)
+print(comp)
+
+## download result data (.csv) ##
+np.savetxt('./MATRIX_TRAIN_RESULT.csv', comp, delimiter=',', newline='\n')
