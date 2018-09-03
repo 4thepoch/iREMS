@@ -5,6 +5,18 @@
 df = pd.read_csv('./170328_180821_REC.csv', header='infer')
 
 #print(df.iloc[0])  #2018-01-03 ~ 2018-08-16
+
+# total_trade_rec : 체결REC 수량
+# avg_price_train : REC 평균가
+# total_trade_q : 체결총액
+# start_price : 시작가
+# end_price : 종가
+# std_price : 기준가
+# max_price : 최고가
+# min_price : 최저가
+
+# avg_price_label : 다음 평균가
+
 train_df = df[['total_trade_rec','avg_price_train','total_trade_q','start_price','end_price','std_price','max_price','min_price']]
 #train_df = df[['total_trade_rec','avg_price_train','total_trade_q','end_price','std_price','max_price','min_price']]
 label_df = df[['avg_price_label']]
